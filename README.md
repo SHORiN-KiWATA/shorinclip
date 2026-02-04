@@ -12,12 +12,13 @@ A wayland clipboard TUI based on `fzf` `wl-clipboad` `cliphist`. Using `kitty ic
 
 - useage
 
-    Manually run this command:
+    Open cliphist daemon with this command:
   
     ```
     wl-paste --watch cliphist store
     ```
-
+    
+    Open tui with:`shorinclip`
 
     Then it just work. Also setup autostart in your wayland compositor's config file.
 
