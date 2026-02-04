@@ -1,0 +1,239 @@
+#!/bin/bash
+
+# 确保缓存目录存在
+export CACHE_DIR="$HOME/.cache/shorinclip"
+mkdir -p "$CACHE_DIR"
+
+# 颜色变量
+export C_TERTIARY='\x1b[1;35m'
+export C_PRIMARY='\x1b[1;34m'
+export C_CYAN='\x1b[1;36m'
+export C_RESET='\x1b[0m'
+
+# 过滤无法复制粘贴的信息
+filter_clip_list() {
+  grep -vP "(?s)(?i)\t.*<html.*\[表情\]"
+}
+export -f filter_clip_list
+# 美化列表
+format_clip_list() {
+  sed -E \
+    -e "s/(\t).*\.(mp4|mkv|webm|avi|mov|flv|wmv)$/\1${C_TERTIARY}[VIDEO]File.\2${C_RESET}/" \
+    -e "s/(\t)file:\/\/.*\.(mp4|mkv|webm|avi|mov|flv|wmv)$/\1${C_TERTIARY}[VIDEO]Url.\2${C_RESET}/" \
+    -e "s/(\t).*src=\"file:\/\/.*[qQ][qQ].*/\1${C_PRIMARY}[IMG_HTML]QQ${C_RESET}/" \
+    -e "s/(\t)file:\/\/.*xwechat.*temp.*/\1${C_PRIMARY}[IMG]WeChat${C_RESET}/" \
+    -e "s/(\t)file:\/\/.*\.gif$/\1${C_PRIMARY}[IMG]Url.gif${C_RESET}/" \
+    -e "s/(\t)file:\/\/.*\.(png|jpg|jpeg|webp|bmp)$/\1${C_TERTIARY}[IMG]Url.\2${C_RESET}/" \
+    -e "s/(\t)file:\/\/.*/\1${C_CYAN}[URL]File${C_RESET}/" \
+    -e "s/(\t)\/.*\.gif$/\1${C_PRIMARY}[IMG]Path.gif${C_RESET}/" \
+    -e "s/(\t)\/.*\.(png|jpg|jpeg|webp|bmp)$/\1${C_TERTIARY}[IMG]Path.\2${C_RESET}/" \
+    -e "s/\[\[ binary data .* (png|jpg|jpeg|gif|webp) .*\]\]/${C_TERTIARY}[IMG]Bin.\1${C_RESET}/" \
+    -e "s/\[\[ binary data .* \]\]/${C_CYAN}[BINARY]${C_RESET}/"
+}
+export -f format_clip_list
+
+# 导入fzf前的处理,添加序号
+add_num() {
+  awk -F '\t' '{printf "%s\t\x1b[90m%-2d \x1b[0m%s\n", $1, NR, $2}'
+}
+export -f add_num
+# 复制前的处理，对不同数据采取不同的处理方式
+copy_selection() {
+  #获取fzf选择的项目
+  local input="$1"
+  # 提取项目id
+  local id=$(echo "$input" | cut -f1)
+  # 获取decode内容
+  local decoded=$(echo "$input" | cliphist decode)
+  # 获取mime类型
+  local mime=$(echo "$input" | cliphist decode | file -b --mime-type -)
+
+  # Python 工具：用于 URL 编码 (处理路径中的中文和空格)
+  url_encode() {
+    python -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "$1"
+  }
+
+  # 1. 二进制图片 -> 直接复制图片数据
+  if [[ "$mime" =~ image ]]; then
+    # 直接复制
+    echo "$input" | cliphist decode | wl-copy
+    notify-send "Copied Image" "ID: $id"
+
+  # 2. QQ HTML -> 提取路径 -> 存入缓存 -> 复制 file:// 缓存路径
+  elif [ "$mime" = "text/html" ]; then
+    local qq_src=$(echo "$decoded" | grep -oP "^<img src=\"file://\K[^\"]+")
+
+    if [ -f "$qq_src" ]; then
+      # url编码处理
+      local encoded_path=$(url_encode "$qq_src")
+
+      # 拼接头并复制
+      echo "file://$encoded_path" | wl-copy --type text/uri-list
+      notify-send "Copied QQ Link" "Src: $qq_src"
+    else
+      notify-send "Error" "Original QQ file missing"
+    fi
+
+  # 4. file:// 协议路径 -> 直接复制为文件链接
+  elif [[ "$decoded" == file://* ]]; then
+    echo "$decoded" | wl-copy --type text/uri-list
+    notify-send "Copied File Link" "$decoded"
+
+  # 3. 绝对路径 -> 转 file:// -> 复制为URL链接
+  elif [[ "$decoded" == /* ]] && [ -e "$decoded" ]; then
+    local encoded_path=$(url_encode "$decoded")
+    echo "file://$encoded_path" | wl-copy --type text/uri-list
+    notify-send "Copied File Path" "$decoded"
+
+  # 5. 其他 -> 普通文本复制
+  else
+    echo "$input" | cliphist decode | wl-copy
+  fi
+}
+export -f copy_selection
+# 自动刷新机制
+FZF_PORT=$(shuf -i 10000-60000 -n 1)
+RELOAD_CMD="cliphist list | filter_clip_list | format_clip_list | add_num"
+wl-paste --watch bash -c "curl -s -X POST -d 'reload($RELOAD_CMD)' http://localhost:$FZF_PORT" >/dev/null 2>&1 &
+WATCH_PID=$!
+trap "kill $WATCH_PID 2>/dev/null" EXIT
+
+# 读取窗口大小，避免窗口过小的时候就打开fzf导致菜单错位
+# 50次循环超时
+wait_timeout=50
+# 循环检测终端的长和宽
+while [[ $(tput cols) -lt 35 || $(tput lines) -lt 25 ]]; do
+	# 每循环一次减少超时时间
+    ((wait_timeout--))
+    [ "$wait_timeout" -eq 0 ] && break
+done
+
+
+#=== FZF 主程序 ===
+cliphist list | filter_clip_list | format_clip_list | add_num | fzf \
+  --ansi \
+  --listen "$FZF_PORT" \
+  --bind "ctrl-r:reload($RELOAD_CMD)" \
+  --bind "ctrl-x:execute-silent(bash -c 'cliphist delete <<< \"\$1\"' -- {})+reload($RELOAD_CMD)" \
+  --prompt="󰅍 > " \
+  --header='CTRL-X: Delete | CTRL-R: Reload | ENTER: Paste' \
+  --color='header:italic:yellow,prompt:blue,pointer:blue' \
+  --info=hidden \
+  --no-sort \
+  --layout=reverse \
+  --with-nth 2.. \
+  --delimiter '\t' \
+  --preview-window=down:50% \
+  --preview '
+  # 获取当期剪贴版项目的id 
+  id=$(echo {} | cut -f1)
+  content=$(echo {} | cut -f2-)
+  # 通过decode数据获取mimetype
+  mimeType=$(echo {} | cliphist decode | file -b --mime-type -)
+  # 获取文件后缀名
+  ext=$(echo $mimeType | awk -F"/" "{print \$2}")
+
+  # 通过mimetype判断数据/类型
+  # 如果是二进制图片
+  if [[ $mimeType =~ image ]]; then
+        # 生成缓存文件
+        img_hash=$(echo {} | cliphist decode | md5sum | cut -d" " -f1)
+        cache_file="$CACHE_DIR/$img_hash.$ext" 
+        echo {} | cliphist decode > "$cache_file"
+        kitty icat --clear --image-id=10 --transfer-mode=file \
+            --place="${FZF_PREVIEW_COLUMNS}x${FZF_PREVIEW_LINES}@0x0" "$cache_file" </dev/tty
+   
+  # 如果是qq复制出来的html链接
+  elif [ "$mimeType" = "text/html" ] && echo "$content" | grep -q QQ; then
+        # 获取html数据中的图片路径
+        qq_img_file=$(echo {} | cliphist decode | grep -oP "^<img src=\"file://\K[^\"]+")
+        # 生成缓存文件
+        #qq_ext="${qq_img_file##*.}" 
+        #qq_img_cache_file=$CACHE_DIR/$id.$qq_ext
+        #cp $qq_img_file $qq_img_cache_file 
+        # 把路径传给kitty icat预览
+        if [ -f "$qq_img_file" ]; then
+        kitty icat --transfer-mode=file --clear --image-id=10 \
+              --place="${FZF_PREVIEW_COLUMNS}x${FZF_PREVIEW_LINES}@0x0" "$qq_img_file" </dev/tty
+        else
+              echo "$qq_img_file does not exsist."
+        fi
+  # 如果是复制文件获取的绝对路径
+  elif path=$(echo {} | cliphist decode) && [[ "$path" == /* ]]; then
+        # 获取路径代表的文件的mimetype
+        path_mime=$(file -b --mime-type "$path")
+        # 如果是图片的话 
+        if [[ $path_mime =~ image ]]; then
+              kitty icat --transfer-mode=file --clear --image-id=10 \
+                  --place="${FZF_PREVIEW_COLUMNS}x${FZF_PREVIEW_LINES}@0x0" "$path" </dev/tty
+        # 如果是视频的话 
+        elif [[ "$path_mime" =~ video ]]; then
+              # 计算路径哈希值避免重复生成视频缩略图
+              video_hash=$(echo "$path" | md5sum | cut -d" " -f1)
+              thumb_file="$CACHE_DIR/$video_hash.png"
+              # 如果缩略图不存在
+              if [ ! -f "$thumb_file" ]; then
+                  # 是否安装了缩略图软件
+                  if command -v ffmpegthumbnailer &>/dev/null;then
+                   ffmpegthumbnailer -i "$path" -o "$thumb_file" -s 480 -t 0 >/dev/null 2>&1
+                  else
+                    echo "ffmpegthumbnailer not installed."
+                  fi
+              fi
+              # 如果缩略图文件存在且大小不为零 
+              if [ -s "$thumb_file" ]; then
+                   kitty icat --transfer-mode=file --image-id=10 \
+                        --place="${FZF_PREVIEW_COLUMNS}x${FZF_PREVIEW_LINES}@${FZF_PREVIEW_LEFT}x${FZF_PREVIEW_TOP}" \
+                        "$thumb_file" </dev/tty 
+               else
+                   echo "Video: $path (No thumbnail)"
+               fi
+        else
+              echo "$path does not exsist."
+        fi
+  # 如果是file:///开头的协议路径
+  elif decoded=$(echo {} | cliphist decode) && [[ "$decoded" == file://* ]]; then
+        # 获取文件路径
+        raw_path="${decoded#file://}"
+	raw_path=$(echo "$raw_path" | python -c "import sys, urllib.parse; print(urllib.parse.unquote(sys.stdin.read().strip()))")
+        mime_raw_path=$(file -b --mime-type "$raw_path")
+
+        # 如果是图片的话
+        if [[ $mime_raw_path =~ image ]]; then
+            kitty icat --transfer-mode=file --clear --image-id=10 \
+                      --place="${FZF_PREVIEW_COLUMNS}x${FZF_PREVIEW_LINES}@0x0" "$raw_path" </dev/tty
+        # 如果是视频的话
+        elif [[ $mime_raw_path =~ video  ]]; then
+            video_hash=$(echo "$raw_path" | md5sum | cut -d" " -f1)
+            raw_thumb_file="$CACHE_DIR/$video_hash.png"
+            # 如果文件不存在的话
+            if [ ! -f "$raw_thumb_file" ] ; then
+                #检测是否安装了ffmpeg缩略图软件
+                if command -v ffmpegthumbnailer >/dev/null 2>&1; then  
+                   ffmpegthumbnailer -i "$raw_path" -o "$raw_thumb_file" -s 480 -t 0 >/dev/null 2>&1
+                else
+                    echo "ffmpegthumbnailer not installed"
+                fi
+            fi
+            # 如果缩略图文件存在且大小不为零 
+            if [ -s "$raw_thumb_file" ]; then
+                kitty icat --transfer-mode=file --image-id=10 \
+                     --place="${FZF_PREVIEW_COLUMNS}x${FZF_PREVIEW_LINES}@${FZF_PREVIEW_LEFT}x${FZF_PREVIEW_TOP}" \
+                     "$raw_thumb_file" </dev/tty 
+            else
+                 echo "Video: $raw_path (No thumbnail)"
+            fi
+        fi
+
+  # 其他数据
+  else
+        kitty icat --clear --silent --transfer-mode=file > /dev/tty 2>/dev/null
+        # 直接预览
+        echo "[$mimeType]"
+        echo --- 
+        echo {} | cliphist decode 
+  fi
+  ' \
+  --bind "enter:execute-silent(bash -c 'copy_selection \"\$1\"' -- {})+accept"
+
+# 粘贴已经绑定到了fzf的enter键，脚本会自动退出，必须写在fzf的按键绑定，否则wl-copy会导致浮动终端卡住（niri下）。
