@@ -27,7 +27,9 @@ A wayland clipboard TUI based on `fzf` `wl-clipboad` `cliphist`. Use `kitty icat
     
     Open tui with command: `shorinclip` 
 
-    Then it just works. Also setup autostart in your wayland compositor's config file.
+    Then it just works. 
+    
+    Don't forget to setup autostart in your wayland compositor's config file.
 
     - Niri
 
@@ -40,4 +42,3 @@ A wayland clipboard TUI based on `fzf` `wl-clipboad` `cliphist`. Use `kitty icat
         ```
         exec-once = wl-paste --watch cliphist store
         ```
-
