@@ -12,8 +12,6 @@ Use `kitty icat` or `chafa` for image preview and `ffmpegthumbnailer` for video 
 
     ![](pictures/kitty2.png)
 
-
-
 - installation
 
     ```
