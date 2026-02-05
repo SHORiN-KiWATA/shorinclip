@@ -12,13 +12,7 @@ Use `kitty icat` or `chafa` for image preview and `ffmpegthumbnailer` for video 
 
     ![](pictures/kitty2.png)
 
-    - alacritty
 
-    ![](pictures/alacritty.png)
-
-    - foot
-
-    ![](pictures/foot.png)
 
 - installation
 
@@ -26,6 +20,17 @@ Use `kitty icat` or `chafa` for image preview and `ffmpegthumbnailer` for video 
     yay -S shorinclip
     ```
     For best image preview, a terminal which supports `kitty icat` is needed, such as `kitty` or `ghostty`, or you can let chafa handle image preview (maybe low quality).
+    
+    For example :
+
+    - foot
+
+    ![](pictures/foot.png)
+
+    - alacritty
+
+    ![](pictures/alacritty.png)
+
 
 - useage
 
