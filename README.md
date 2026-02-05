@@ -4,11 +4,18 @@ My first bash script.
 
 A wayland clipboard TUI based on `fzf` `wl-clipboad` `cliphist`. Use `kitty icat` for image preview and `ffmpegthumbnailer` for video thumb generation.
 
+- some image
+
+    ![](pictures/showcase1.png)
+
+    ![](pictures/showcase2.png)
+
 - installation
 
     ```
     yay -S shorinclip
     ```
+    For image preview, a terminal which supports `kitty icat` is needed, such as `kitty` or `ghostty`.
 
 - useage
 
@@ -18,16 +25,19 @@ A wayland clipboard TUI based on `fzf` `wl-clipboad` `cliphist`. Use `kitty icat
     wl-paste --watch cliphist store
     ```
     
-    Open tui with:`shorinclip`
+    Open tui with command: `shorinclip` 
 
-    Then it just work. Also setup autostart in your wayland compositor's config file.
+    Then it just works. Also setup autostart in your wayland compositor's config file.
 
+    - Niri
 
-    For image preview, you need to install a terminal which supports `kitty icat` such as `kitty` or `ghostty`.
+        ```
+        spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
+        ```
 
+    - Hyprland
 
-- some image
+        ```
+        exec-once = wl-paste --watch cliphist store
+        ```
 
-    ![](pictures/showcase1.png)
-
-    ![](pictures/showcase2.png)
