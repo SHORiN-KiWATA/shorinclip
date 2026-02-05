@@ -2,7 +2,9 @@
 
 My first bash script.
 
-A wayland clipboard TUI based on `fzf` `wl-clipboad` `cliphist`. Use `kitty icat` for image preview and `ffmpegthumbnailer` for video thumb generation.
+A wayland clipboard TUI based on `fzf` `wl-clipboad` `cliphist`. 
+
+Use `kitty icat` or `chafa` for image preview and `ffmpegthumbnailer` for video thumb generation.
 
 - some image
 
@@ -15,7 +17,7 @@ A wayland clipboard TUI based on `fzf` `wl-clipboad` `cliphist`. Use `kitty icat
     ```
     yay -S shorinclip
     ```
-    For image preview, a terminal which supports `kitty icat` is needed, such as `kitty` or `ghostty`.
+    For best image preview, a terminal which supports `kitty icat` is needed, such as `kitty` or `ghostty`, or you can let chafa handle image preview (maybe low quality).
 
 - useage
 
