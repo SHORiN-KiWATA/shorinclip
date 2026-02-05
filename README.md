@@ -8,9 +8,17 @@ Use `kitty icat` or `chafa` for image preview and `ffmpegthumbnailer` for video 
 
 - some image
 
-    ![](pictures/showcase1.png)
+    - kitty 
 
-    ![](pictures/showcase2.png)
+    ![](pictures/kitty2.png)
+
+    - alacritty
+
+    ![](pictures/alacritty.png)
+
+    - foot
+
+    ![](pictures/foot.png)
 
 - installation
 
