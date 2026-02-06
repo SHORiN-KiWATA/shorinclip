@@ -20,7 +20,6 @@ check_kitty_icat() {
   fi
   (
     # 构造查询序列
-    local query_id query_code fence_code expected
     query_id=$RANDOM
     query_code=$(printf "\033_Gi=%d,s=1,v=1,a=q,t=d,f=24;AAAA\033\\" "$query_id")
     expected=$(printf "\033_Gi=%d;OK\033\\" "$query_id")
@@ -28,16 +27,16 @@ check_kitty_icat() {
     fence_code=$(printf "\033[c")
 
     # 设置终端为非规范模式，单字符读取
-    local stty_orig
     stty_orig=$(stty -g)
     trap "stty '$stty_orig'" EXIT
     stty -echo -icanon min 1 time 0
 
     printf "%s%s" "$query_code" "$fence_code" > /dev/tty
 
-    local response=""
+    response=""
     ret=0
     while true; do
+      # -r 取消转义 -N 1 只读一个字符 -t 0.3 超时0.3秒
       IFS= read -r -N 1 -t 0.3 char || {
         [ -z "$char" ] && break
       }
