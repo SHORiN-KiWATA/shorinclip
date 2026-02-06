@@ -27,18 +27,18 @@ check_kitty_icat() {
     # 哨兵，确保不支持的终端也能返回内容
     fence_code=$(printf "\033[c")
 
-    # 设置终端为非规范模式，单字符读取，超时 0.5 秒
+    # 设置终端为非规范模式，单字符读取
     local stty_orig
     stty_orig=$(stty -g)
     trap "stty '$stty_orig'" EXIT
-    stty -echo -icanon min 0 time 5
+    stty -echo -icanon min 1 time 0
 
     printf "%s%s" "$query_code" "$fence_code" > /dev/tty
 
     local response=""
     ret=0
     while true; do
-      IFS= read -r -N 1 char || {
+      IFS= read -r -N 1 -t 0.3 char || {
         [ -z "$char" ] && break
       }
 
