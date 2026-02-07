@@ -2,7 +2,7 @@
 
 My first bash script.
 
-A wayland clipboard TUI based on `fzf` `wl-clipboad` `cliphist`. 
+A wayland clipboard TUI based on `fzf` `wl-clipboard` `cliphist`. 
 
 Use `chafa` for image preview,; `kitty icat` for gif preview when using native kitty, `ffmpegthumbnailer` for video thumb generation.
 
