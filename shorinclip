@@ -2,42 +2,57 @@
 
 # 确保缓存目录存在
 export CACHE_DIR="$HOME/.cache/shorinclip"
-export SHELL=$(command -v bash)
 mkdir -p "$CACHE_DIR"
+# 确保默认shell为bash
+export SHELL=$(command -v bash)
 
-# 颜色变量
+# 颜色变量，适配matugen配色
 export C_TERTIARY='\x1b[1;35m'
 export C_PRIMARY='\x1b[1;34m'
 export C_CYAN='\x1b[1;36m'
 export C_RESET='\x1b[0m'
 
-# 检查是否支持kitty icat
+# 检查是否支持kitty协议
 check_kitty_icat() {
-  # Workaround for WezTerm
+
+  export ENABLE_ICAT=0
+  export IS_NATIVE_KITTY=0
+
+  # 1. 为kitty终端单独做判断
+  if [ "$TERM" = "xterm-kitty" ]; then
+    export ENABLE_ICAT=1
+    export IS_NATIVE_KITTY=1
+    return
+  fi
+
+  # 2. 虽然WezTerm支持kitty协议，但似乎有些问题，禁用
   if [ -n "$WEZTERM_EXECUTABLE" ]; then
     ENABLE_ICAT=0
     return
   fi
+
+  # 3. 通过转义序列判断
   (
     # 构造查询序列
+    local query_id query_code fence_code expected
     query_id=$RANDOM
     query_code=$(printf "\033_Gi=%d,s=1,v=1,a=q,t=d,f=24;AAAA\033\\" "$query_id")
     expected=$(printf "\033_Gi=%d;OK\033\\" "$query_id")
     # 哨兵，确保不支持的终端也能返回内容
     fence_code=$(printf "\033[c")
 
-    # 设置终端为非规范模式，单字符读取
+    # 设置终端为非规范模式，单字符读取，超时 0.5 秒
+    local stty_orig
     stty_orig=$(stty -g)
     trap "stty '$stty_orig'" EXIT
-    stty -echo -icanon min 1 time 0
+    stty -echo -icanon min 0 time 5
 
-    printf "%s%s" "$query_code" "$fence_code" > /dev/tty
+    printf "%s%s" "$query_code" "$fence_code" >/dev/tty
 
-    response=""
+    local response=""
     ret=0
     while true; do
-      # -r 取消转义 -N 1 只读一个字符 -t 0.3 超时0.3秒
-      IFS= read -r -N 1 -t 0.3 char || {
+      IFS= read -r -N 1 char || {
         [ -z "$char" ] && break
       }
 
@@ -62,19 +77,34 @@ check_kitty_icat() {
 
     exit $ret
   )
-
   ENABLE_ICAT=$?
   export ENABLE_ICAT
 }
 check_kitty_icat
-# 设置preview命令
+
+# ============================
+# 设置图片 preview命令
+# ============================
 _preview() {
+  # 导入文件
   local file="$1"
+  # 文件的mime类型
+  local mime=$(file -b --mime-type "$file")
+  # 如果支持kitty协议的话
   if [ "$ENABLE_ICAT" = "1" ]; then
-    # chafa --clear 只会发送常见的 \x1b[H\x1b[2J 序列，
-    # 无法依靠其清除 kitty 协议在 fzf preview 中显示的图片
+    # 清除图片
     printf "\x1b_Ga=d\x1b\\"
+    # 如果是gif并且是原生kitty终端的话用kitty icat显示gif图片（不过窗口过小的时候貌似无法完整显示）
+    if [ "$IS_NATIVE_KITTY" = "1" ] && [[ "$mime" =~ "gif" ]]; then
+      kitty icat --transfer-mode=file --image-id=10 \
+        --place="${FZF_PREVIEW_COLUMNS}x${FZF_PREVIEW_LINES}@0x0" \
+        "$file" </dev/tty
+      return
+    fi
+    # 情况用chafa -f kitty --animate=off 显示静态预览图（因为他们对gif的支持不好）
     chafa -f kitty --animate=off --size="${FZF_PREVIEW_COLUMNS}x${FZF_PREVIEW_LINES}" "$file"
+
+    # 不支持kitty协议的终端用chafa自动选择合适的协议显示静态预览图
   else
     chafa --animate=off --size="${FZF_PREVIEW_COLUMNS}x${FZF_PREVIEW_LINES}" "$file"
   fi
