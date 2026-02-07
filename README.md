@@ -4,9 +4,9 @@ My first bash script.
 
 A wayland clipboard TUI based on `fzf` `wl-clipboad` `cliphist`. 
 
-Use `kitty icat` or `chafa` for image preview and `ffmpegthumbnailer` for video thumb generation.
+Use `chafa` for image preview,; `kitty icat` for gif preview when using native kitty, `ffmpegthumbnailer` for video thumb generation.
 
-- some image
+- some images
 
     - kitty 
 
@@ -17,7 +17,7 @@ Use `kitty icat` or `chafa` for image preview and `ffmpegthumbnailer` for video 
     ```
     yay -S shorinclip
     ```
-    For best image preview, a terminal which supports `kitty icat` is needed, such as `kitty` or `ghostty`, or you can let chafa handle image preview (maybe low quality).
+    For best image preview, a terminal which supports kitty image protocal is needed, such as `kitty` or `ghostty`, or you can let chafa handle image preview (maybe low quality).
     
     For example :
 
@@ -38,7 +38,7 @@ Use `kitty icat` or `chafa` for image preview and `ffmpegthumbnailer` for video 
     wl-paste --watch cliphist store
     ```
     
-    Open tui with command: `shorinclip` 
+    Open tui with this command: `shorinclip` 
 
     Then it just works. 
     
