@@ -17,7 +17,7 @@ Use `chafa` for image preview, `kitty icat` for gif preview when using native ki
     ```
     yay -S shorinclip
     ```
-    For best image preview, a terminal which supports kitty image protocal is needed, such as `kitty` or `ghostty`, or you can let chafa handle image preview (maybe low quality).
+    For best image preview, a terminal which supports kitty image protocol is needed, such as `kitty` or `ghostty`, or you can let chafa handle image preview (maybe low quality).
     
     For example :
 
