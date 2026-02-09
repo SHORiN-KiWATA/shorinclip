@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# 这是一段测试文字
 # 确保缓存目录存在
 export CACHE_DIR="$HOME/.cache/shorinclip"
 mkdir -p "$CACHE_DIR"
@@ -124,7 +124,7 @@ format_clip_list() {
     -e "s/(\t)file:\/\/.*xwechat.*temp.*/\1${C_PRIMARY}[IMG]WeChat${C_RESET}/" \
     -e "s/(\t)file:\/\/.*\.gif$/\1${C_PRIMARY}[IMG]Url.gif${C_RESET}/" \
     -e "s/(\t)file:\/\/.*\.(png|jpg|jpeg|webp|bmp)$/\1${C_TERTIARY}[IMG]Url.\2${C_RESET}/" \
-    -e "s/(\t)file:\/\/.*\.config\/QQ\/.*/\1${C_PRIMARY}[URL_QQ]File${C_RESET}/" \
+    -e "s/(\t)file:\/\/.*\.config\/QQ\/.*/\1${C_PRIMARY}[IMG_URL]QQ${C_RESET}/" \
     -e "s/(\t)file:\/\/.*/\1${C_CYAN}[URL]File${C_RESET}/" \
     -e "s/(\t)\/.*\.gif$/\1${C_PRIMARY}[IMG]Path.gif${C_RESET}/" \
     -e "s/(\t)\/.*\.(png|jpg|jpeg|webp|bmp)$/\1${C_TERTIARY}[IMG]Path.\2${C_RESET}/" \
@@ -190,6 +190,8 @@ copy_selection() {
   else
     echo "$input" | cliphist decode | wl-copy
   fi
+  # 避免出现重复内容
+  echo "$input" | cliphist delete 
 }
 export -f copy_selection
 # 自动刷新机制
