@@ -124,6 +124,7 @@ format_clip_list() {
     -e "s/(\t)file:\/\/.*xwechat.*temp.*/\1${C_PRIMARY}[IMG]WeChat${C_RESET}/" \
     -e "s/(\t)file:\/\/.*\.gif$/\1${C_PRIMARY}[IMG]Url.gif${C_RESET}/" \
     -e "s/(\t)file:\/\/.*\.(png|jpg|jpeg|webp|bmp)$/\1${C_TERTIARY}[IMG]Url.\2${C_RESET}/" \
+    -e "s/(\t)file:\/\/.*\.config\/QQ\/.*/\1${C_PRIMARY}[URL_QQ]File${C_RESET}/" \
     -e "s/(\t)file:\/\/.*/\1${C_CYAN}[URL]File${C_RESET}/" \
     -e "s/(\t)\/.*\.gif$/\1${C_PRIMARY}[IMG]Path.gif${C_RESET}/" \
     -e "s/(\t)\/.*\.(png|jpg|jpeg|webp|bmp)$/\1${C_TERTIARY}[IMG]Path.\2${C_RESET}/" \
@@ -215,7 +216,7 @@ cliphist list | filter_clip_list | format_clip_list | add_num | fzf \
   --bind "ctrl-r:reload($RELOAD_CMD)" \
   --bind "ctrl-x:execute-silent(bash -c 'cliphist delete <<< \"\$1\"' -- {})+reload($RELOAD_CMD)" \
   --prompt="󰅍 > " \
-  --header='CTRL-X: Delete | CTRL-R: Reload | ENTER: Paste' \
+  --header='C^-X: Delete | C^-R: Reload | C^+F/Enter: Paste' \
   --color='header:italic:yellow,prompt:blue,pointer:blue' \
   --info=hidden \
   --no-sort \
@@ -326,6 +327,10 @@ cliphist list | filter_clip_list | format_clip_list | add_num | fzf \
         echo {} | cliphist decode 
   fi
   ' \
-  --bind "enter:execute-silent(bash -c 'copy_selection \"\$1\"' -- {})+accept"
+  --bind "enter:execute-silent(bash -c 'copy_selection \"\$1\"' -- {})+accept"\
+  --bind "ctrl-f:execute-silent(bash -c 'copy_selection \"\$1\"' -- {})+accept"\
+  --bind "ctrl-l:execute-silent(bash -c 'copy_selection \"\$1\"' -- {})+accept"\
+  --bind "ctrl-h:execute-silent(bash -c 'copy_selection \"\$1\"' -- {})+accept"\
+
 
 # 粘贴已经绑定到了fzf的enter键，脚本会自动退出，必须写在fzf的按键绑定，否则wl-copy会导致浮动终端卡住（niri下）。
