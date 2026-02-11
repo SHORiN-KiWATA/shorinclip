@@ -217,8 +217,9 @@ cliphist list | filter_clip_list | format_clip_list | add_num | fzf \
   --listen "$FZF_PORT" \
   --bind "ctrl-r:reload($RELOAD_CMD)" \
   --bind "ctrl-x:execute-silent(bash -c 'cliphist delete <<< \"\$1\"' -- {})+reload($RELOAD_CMD)" \
+  --bind "alt-x:execute-silent(gio trash \"$HOME/.cache/cliphist/db\" 2>/dev/null || rm \"$HOME/.cache/cliphist/db\")+reload($RELOAD_CMD)" \
   --prompt="󰅍 > " \
-  --header='C^-X: Delete | C^-R: Reload | C^+F/Enter: Paste' \
+  --header='C^-X: Delete | Alt+X D-All| C^-R: Reload | C^+F/Enter: Paste' \
   --color='header:italic:yellow,prompt:blue,pointer:blue' \
   --info=hidden \
   --no-sort \
