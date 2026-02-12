@@ -121,7 +121,7 @@ format_clip_list() {
     -e "s/(\t).*\.(mp4|mkv|webm|avi|mov|flv|wmv)$/\1${C_TERTIARY}[VIDEO]File.\2${C_RESET}/" \
     -e "s/(\t)file:\/\/.*\.(mp4|mkv|webm|avi|mov|flv|wmv)$/\1${C_TERTIARY}[VIDEO]Url.\2${C_RESET}/" \
     -e "s/(\t).*src=\"file:\/\/.*[qQ][qQ].*/\1${C_PRIMARY}[IMG_HTML]QQ${C_RESET}/" \
-    -e "s/(\t)file:\/\/.*xwechat.*temp.*/\1${C_PRIMARY}[IMG]WeChat${C_RESET}/" \
+    -e "s/(\t)file:\/\/.*xwechat.*temp.*/\1${C_PRIMARY}[IMG_URL]WeChat${C_RESET}/" \
     -e "s/(\t)file:\/\/.*\.gif$/\1${C_PRIMARY}[IMG]Url.gif${C_RESET}/" \
     -e "s/(\t)file:\/\/.*\.(png|jpg|jpeg|webp|bmp)$/\1${C_TERTIARY}[IMG]Url.\2${C_RESET}/" \
     -e "s/(\t)file:\/\/.*\.config\/QQ\/.*/\1${C_PRIMARY}[IMG_URL]QQ${C_RESET}/" \
