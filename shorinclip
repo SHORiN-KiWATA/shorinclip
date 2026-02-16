@@ -12,6 +12,7 @@ export C_PRIMARY='\x1b[1;34m'
 export C_CYAN='\x1b[1;36m'
 export C_RESET='\x1b[0m'
 
+
 # 检查是否支持kitty协议
 check_kitty_icat() {
 
@@ -115,6 +116,8 @@ filter_clip_list() {
   grep -vP "(?s)(?i)\t.*<html.*\[表情\]"
 }
 export -f filter_clip_list
+
+
 # 美化列表
 format_clip_list() {
   sed -E \
@@ -138,6 +141,11 @@ add_num() {
   awk -F '\t' '{printf "%s\t\x1b[90m%-2d \x1b[0m%s\n", $1, NR, $2}'
 }
 export -f add_num
+
+hash_calc(){
+  md5sum | cut -d" " -f1
+}
+export -f hash_calc
 # 复制前的处理，对不同数据采取不同的处理方式
 copy_selection() {
   #获取fzf选择的项目
@@ -240,7 +248,7 @@ cliphist list | filter_clip_list | format_clip_list | add_num | fzf \
   # 如果是二进制图片
   if [[ $mimeType =~ image ]]; then
         # 生成缓存文件
-        img_hash=$(echo {} | cliphist decode | md5sum | cut -d" " -f1)
+        img_hash=$(echo {} | cliphist decode | hash_calc)
         cache_file="$CACHE_DIR/$img_hash.$ext" 
         echo {} | cliphist decode > "$cache_file"
         _preview "$cache_file"
@@ -269,7 +277,7 @@ cliphist list | filter_clip_list | format_clip_list | add_num | fzf \
         # 如果是视频的话 
         elif [[ "$path_mime" =~ video ]]; then
               # 计算路径哈希值避免重复生成视频缩略图
-              video_hash=$(echo "$path" | md5sum | cut -d" " -f1)
+              video_hash=$(echo "$path" | hash_calc)
               thumb_file="$CACHE_DIR/$video_hash.png"
               # 如果缩略图不存在
               if [ ! -f "$thumb_file" ]; then
@@ -301,7 +309,7 @@ cliphist list | filter_clip_list | format_clip_list | add_num | fzf \
             _preview "$raw_path" 
         # 如果是视频的话
         elif [[ $mime_raw_path =~ video  ]]; then
-            video_hash=$(echo "$raw_path" | md5sum | cut -d" " -f1)
+            video_hash=$(echo "$raw_path" | hash_calc)
             raw_thumb_file="$CACHE_DIR/$video_hash.png"
             # 如果文件不存在的话
             if [ ! -f "$raw_thumb_file" ] ; then
