@@ -199,7 +199,7 @@ open_selection() {
     xdg-open "$decoded" >/dev/null 2>&1 & disown
 
   else
-    notify-send "Shorinclip" "Unsupported media type for direct open"
+    return 0
   fi
 }
 export -f open_selection
