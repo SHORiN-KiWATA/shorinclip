@@ -1,5 +1,11 @@
 #!/bin/bash
-# 这是一段测试文字
+# 脚本功能：基于 cliphist 和 fzf 的高级剪贴板 TUI 工具。
+# 1. 自动过滤和美化剪贴板历史列表（支持视频、图片、QQ/微信等富文本分类）。
+# 2. 结合 Kitty icat 或 chafa 实现剪贴板内容的实时预览（支持生成视频缩略图）。
+# 3. 智能解析剪贴板数据，支持原格式重新复制或提取有效路径复制。
+# 4. 支持快捷键 (Ctrl+O / Ctrl+E) 直接调用系统默认工具打开剪贴板中的图片或视频文件。
+# 5. 支持快捷键 (Ctrl+R) 手动刷新剪贴板列表，Ctrl+X删除条目，Alt+X 一键清空剪贴板历史。
+
 # 确保缓存目录存在
 export CACHE_DIR="$HOME/.cache/shorinclip"
 mkdir -p "$CACHE_DIR"
@@ -111,6 +117,7 @@ _preview() {
   fi
 }
 export -f _preview
+
 # 过滤无法复制粘贴的信息
 filter_clip_list() {
   grep -vP "(?s)(?i)\t.*<html.*\[表情\]"
@@ -146,6 +153,57 @@ hash_calc(){
   md5sum | cut -d" " -f1
 }
 export -f hash_calc
+
+# 直接打开剪贴板中的媒体文件
+open_selection() {
+  local input="$1"
+  local decoded=$(echo "$input" | cliphist decode)
+  local mime=$(echo "$input" | cliphist decode | file -b --mime-type -)
+
+  # Python 工具：用于 URL 解码
+  url_decode() {
+    python -c "import sys, urllib.parse; print(urllib.parse.unquote(sys.argv[1]))" "$1"
+  }
+
+  # 1. 二进制图片 -> 写入缓存再打开
+  if [[ "$mime" =~ image ]]; then
+    local img_hash=$(echo "$input" | cliphist decode | hash_calc)
+    local ext=$(echo "$mime" | awk -F"/" '{print $2}')
+    local cache_file="$CACHE_DIR/$img_hash.$ext"
+    if [ ! -f "$cache_file" ]; then
+      echo "$input" | cliphist decode > "$cache_file"
+    fi
+    xdg-open "$cache_file" >/dev/null 2>&1 & disown
+
+  # 2. QQ HTML -> 提取路径打开
+  elif [ "$mime" = "text/html" ]; then
+    local qq_src=$(echo "$decoded" | grep -oP "^<img src=\"file://\K[^\"]+")
+    if [ -f "$qq_src" ]; then
+      xdg-open "$qq_src" >/dev/null 2>&1 & disown
+    else
+      notify-send "Open Error" "Original QQ file missing"
+    fi
+
+  # 3. file:// 协议路径 -> 解码后打开
+  elif [[ "$decoded" == file://* ]]; then
+    local raw_path="${decoded#file://}"
+    raw_path=$(url_decode "$raw_path")
+    if [ -e "$raw_path" ]; then
+      xdg-open "$raw_path" >/dev/null 2>&1 & disown
+    else
+      notify-send "Open Error" "File does not exist: $raw_path"
+    fi
+
+  # 4. 绝对路径 -> 直接打开
+  elif [[ "$decoded" == /* ]] && [ -e "$decoded" ]; then
+    xdg-open "$decoded" >/dev/null 2>&1 & disown
+
+  else
+    notify-send "Shorinclip" "Unsupported media type for direct open"
+  fi
+}
+export -f open_selection
+
 # 复制前的处理，对不同数据采取不同的处理方式
 copy_selection() {
   #获取fzf选择的项目
@@ -226,8 +284,10 @@ cliphist list | filter_clip_list | format_clip_list | add_num | fzf \
   --bind "ctrl-r:reload($RELOAD_CMD)" \
   --bind "ctrl-x:execute-silent(bash -c 'cliphist delete <<< \"\$1\"' -- {})+reload($RELOAD_CMD)" \
   --bind "alt-x:execute-silent(gio trash \"$HOME/.cache/cliphist/db\" 2>/dev/null || rm \"$HOME/.cache/cliphist/db\")+reload($RELOAD_CMD)" \
+  --bind "ctrl-o:execute-silent(bash -c 'open_selection \"\$1\"' -- {})" \
+  --bind "ctrl-e:execute-silent(bash -c 'open_selection \"\$1\"' -- {})" \
   --prompt="󰅍 > " \
-  --header='C^-X: Delete | Alt+X D-All| C^-R: Reload | C^+F/Enter: Paste' \
+  --header='C^-X: Delete | Alt+X: D-All | C^-R: Reload | C^-O/E: Open | Enter/C^-F: Paste' \
   --color='header:italic:yellow,prompt:blue,pointer:blue' \
   --info=hidden \
   --no-sort \
@@ -301,7 +361,7 @@ cliphist list | filter_clip_list | format_clip_list | add_num | fzf \
   elif decoded=$(echo {} | cliphist decode) && [[ "$decoded" == file://* ]]; then
         # 获取文件路径
         raw_path="${decoded#file://}"
-	raw_path=$(echo "$raw_path" | python -c "import sys, urllib.parse; print(urllib.parse.unquote(sys.stdin.read().strip()))")
+    raw_path=$(echo "$raw_path" | python -c "import sys, urllib.parse; print(urllib.parse.unquote(sys.stdin.read().strip()))")
         mime_raw_path=$(file -b --mime-type "$raw_path")
 
         # 如果是图片的话
@@ -341,7 +401,7 @@ cliphist list | filter_clip_list | format_clip_list | add_num | fzf \
   --bind "enter:execute-silent(bash -c 'copy_selection \"\$1\"' -- {})+accept"\
   --bind "ctrl-f:execute-silent(bash -c 'copy_selection \"\$1\"' -- {})+accept"\
   --bind "ctrl-l:execute-silent(bash -c 'copy_selection \"\$1\"' -- {})+accept"\
-  --bind "ctrl-h:execute-silent(bash -c 'copy_selection \"\$1\"' -- {})+accept"\
+  --bind "ctrl-h:execute-silent(bash -c 'copy_selection \"\$1\"' -- {})+accept"
 
 
 # 粘贴已经绑定到了fzf的enter键，脚本会自动退出，必须写在fzf的按键绑定，否则wl-copy会导致浮动终端卡住（niri下）。
