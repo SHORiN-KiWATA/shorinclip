@@ -120,7 +120,7 @@ export -f _preview
 
 # 过滤无法复制粘贴的信息
 filter_clip_list() {
-  grep -vP "(?s)(?i)\t.*<html.*\[表情\]"
+  grep -a -vP "(?s)(?i)\t.*<html.*\[表情\]"
 }
 export -f filter_clip_list
 
@@ -130,8 +130,8 @@ format_clip_list() {
   sed -E \
     -e "s/(\t).*\.(mp4|mkv|webm|avi|mov|flv|wmv)$/\1${C_TERTIARY}[VIDEO]File.\2${C_RESET}/" \
     -e "s/(\t)file:\/\/.*\.(mp4|mkv|webm|avi|mov|flv|wmv)$/\1${C_TERTIARY}[VIDEO]Url.\2${C_RESET}/" \
-    -e "s/(\t).*QQRichEditFormat.*EditElement type=\"7\".*/\1${C_TERTIARY}[VIDEO_HTML]QQ${C_RESET}/" \
-    -e "s/(\t).*src=\"file:\/\/.*[qQ][qQ].*/\1${C_PRIMARY}[IMG_HTML]QQ${C_RESET}/" \
+    -e "s/(\t).*QQRich[E]ditFormat.*EditElement type=\"[7]\".*/\1${C_TERTIARY}[VIDEO_HTML]QQ${C_RESET}/" \
+    -e "s/(\t).*sr[c]=\"file:\/\/.*[qQ][qQ].*/\1${C_PRIMARY}[IMG_HTML]QQ${C_RESET}/" \
     -e "s/(\t)file:\/\/.*xwechat.*temp.*/\1${C_PRIMARY}[IMG_URL]WeChat${C_RESET}/" \
     -e "s/(\t)file:\/\/.*\.gif$/\1${C_PRIMARY}[IMG]Url.gif${C_RESET}/" \
     -e "s/(\t)file:\/\/.*\.(png|jpg|jpeg|webp|bmp)$/\1${C_TERTIARY}[IMG]Url.\2${C_RESET}/" \
@@ -176,23 +176,15 @@ open_selection() {
     fi
     xdg-open "$cache_file" >/dev/null 2>&1 & disown
 
-  # 2. QQ HTML -> 提取路径打开
-  elif [ "$mime" = "text/html" ]; then
-    local qq_src=$(echo "$decoded" | grep -oP "^<img src=\"file://\K[^\"]+")
-    if [ -f "$qq_src" ]; then
-      xdg-open "$qq_src" >/dev/null 2>&1 & disown
-    else
-      notify-send "Open Error" "Original QQ file missing"
-    fi
+  # 2. QQ HTML -> 提取路径打开 
+  elif [ "$mime" = "text/html" ] && [ -f "$(echo "$decoded" | grep -a -oP '^<img sr[c]="file://\K[^"]+' | head -n 1)" ]; then
+    local qq_src=$(echo "$decoded" | grep -a -oP "^<img sr[c]=\"file://\K[^\"]+" | head -n 1)
+    xdg-open "$qq_src" >/dev/null 2>&1 & disown
 
-  # QQ 视频富文本 -> 提取路径打开
-  elif echo "$decoded" | grep -q "QQRichEditFormat" && echo "$decoded" | grep -q 'EditElement type="7"'; then
-    local qq_vid_src=$(echo "$decoded" | grep -oP 'filepath="\K[^"]+')
-    if [ -f "$qq_vid_src" ]; then
-      xdg-open "$qq_vid_src" >/dev/null 2>&1 & disown
-    else
-      notify-send "Open Error" "Original QQ video missing"
-    fi
+  # QQ 视频富文本 -> 提取路径打开 
+  elif echo "$decoded" | grep -a -q "QQRich[E]ditFormat" && echo "$decoded" | grep -a -q 'EditElement type="[7]"' && [ -f "$(echo "$decoded" | grep -a -oP 'filepat[h]="\K[^"]+' | head -n 1)" ]; then
+    local qq_vid_src=$(echo "$decoded" | grep -a -oP 'filepat[h]="\K[^"]+' | head -n 1)
+    xdg-open "$qq_vid_src" >/dev/null 2>&1 & disown
 
   # 3. file:// 协议路径 -> 解码后打开
   elif [[ "$decoded" == file://* ]]; then
@@ -236,31 +228,19 @@ copy_selection() {
     echo "$input" | cliphist decode | wl-copy
     notify-send "Copied Image" "ID: $id"
 
-  # 2. QQ HTML -> 提取路径 -> 存入缓存 -> 复制 file:// 缓存路径
-  elif [ "$mime" = "text/html" ]; then
-    local qq_src=$(echo "$decoded" | grep -oP "^<img src=\"file://\K[^\"]+")
+  # 2. QQ HTML -> 提取路径 -> 存入缓存 -> 复制 file:// 缓存路径 (验证文件有效性，无效则降级)
+  elif [ "$mime" = "text/html" ] && [ -f "$(echo "$decoded" | grep -a -oP '^<img sr[c]="file://\K[^"]+' | head -n 1)" ]; then
+    local qq_src=$(echo "$decoded" | grep -a -oP "^<img sr[c]=\"file://\K[^\"]+" | head -n 1)
+    local encoded_path=$(url_encode "$qq_src")
+    echo "file://$encoded_path" | wl-copy --type text/uri-list
+    notify-send "Copied QQ Link" "Src: $qq_src"
 
-    if [ -f "$qq_src" ]; then
-      # url编码处理
-      local encoded_path=$(url_encode "$qq_src")
-
-      # 拼接头并复制
-      echo "file://$encoded_path" | wl-copy --type text/uri-list
-      notify-send "Copied QQ Link" "Src: $qq_src"
-    else
-      notify-send "Error" "Original QQ file missing"
-    fi
-
-  # QQ 视频富文本 -> 提取路径 -> 复制 file:// 链接
-  elif echo "$decoded" | grep -q "QQRichEditFormat" && echo "$decoded" | grep -q 'EditElement type="7"'; then
-    local qq_vid_src=$(echo "$decoded" | grep -oP 'filepath="\K[^"]+')
-    if [ -f "$qq_vid_src" ]; then
-      local encoded_path=$(url_encode "$qq_vid_src")
-      echo "file://$encoded_path" | wl-copy --type text/uri-list
-      notify-send "Copied QQ Video Link" "Path: $qq_vid_src"
-    else
-      notify-send "Error" "Original QQ video missing"
-    fi
+  # QQ 视频富文本 -> 提取路径 -> 复制 file:// 链接 
+  elif echo "$decoded" | grep -a -q "QQRich[E]ditFormat" && echo "$decoded" | grep -a -q 'EditElement type="[7]"' && [ -f "$(echo "$decoded" | grep -a -oP 'filepat[h]="\K[^"]+' | head -n 1)" ]; then
+    local qq_vid_src=$(echo "$decoded" | grep -a -oP 'filepat[h]="\K[^"]+' | head -n 1)
+    local encoded_path=$(url_encode "$qq_vid_src")
+    echo "file://$encoded_path" | wl-copy --type text/uri-list
+    notify-send "Copied QQ Video Link" "Path: $qq_vid_src"
 
   # 4. file:// 协议路径 -> 直接复制为文件链接
   elif [[ "$decoded" == file://* ]]; then
@@ -273,7 +253,7 @@ copy_selection() {
     echo "file://$encoded_path" | wl-copy --type text/uri-list
     notify-send "Copied File Path" "$decoded"
 
-  # 5. 其他 -> 普通文本复制
+  # 5. 其他 -> 普通文本复制 
   else
     echo "$input" | cliphist decode | wl-copy
   fi
@@ -281,6 +261,7 @@ copy_selection() {
   echo "$input" | cliphist delete 
 }
 export -f copy_selection
+
 # 自动刷新机制
 FZF_PORT=$(shuf -i 10000-60000 -n 1)
 RELOAD_CMD="cliphist list | filter_clip_list | format_clip_list | add_num"
@@ -335,24 +316,20 @@ cliphist list | filter_clip_list | format_clip_list | add_num | fzf \
         _preview "$cache_file"
    
   # 如果是qq复制出来的html链接
-  elif [ "$mimeType" = "text/html" ] && echo "$content" | grep -q QQ; then
-        # 获取html数据中的图片路径
-        qq_img_file=$(echo {} | cliphist decode | grep -oP "^<img src=\"file://\K[^\"]+")
-        # 生成缓存文件
-        #qq_ext="${qq_img_file##*.}" 
-        #qq_img_cache_file=$CACHE_DIR/$id.$qq_ext
-        #cp $qq_img_file $qq_img_cache_file 
-        # 把路径传给kitty icat预览
-        if [ -f "$qq_img_file" ]; then
-        _preview "$qq_img_file"
+  elif [ "$mimeType" = "text/html" ] && echo "$content" | grep -a -q QQ; then
+        # 获取html数据中的图片路径，加入容错
+        qq_img_file=$(echo {} | cliphist decode | grep -a -oP "^<img sr[c]=\"file://\K[^\"]+" | head -n 1)
+        if [ -n "$qq_img_file" ] && [ -f "$qq_img_file" ]; then
+            _preview "$qq_img_file"
         else
-              echo "$qq_img_file does not exsist."
+            echo {} | cliphist decode
         fi
 
-  # 如果是QQ复制出来的富文本视频
-  elif echo {} | cliphist decode | grep -q "QQRichEditFormat" && echo {} | cliphist decode | grep -q "EditElement type=\"7\""; then
-        qq_vid_file=$(echo {} | cliphist decode | grep -oP "filepath=\"\K[^\"]+")
-        if [ -f "$qq_vid_file" ]; then
+  # 如果是QQ复制出来的富文本视频 (规避自匹配 bug)
+  elif echo {} | cliphist decode | grep -a -q "QQRich[E]ditFormat" && echo {} | cliphist decode | grep -a -q "EditElement type=\"[7]\""; then
+        qq_vid_file=$(echo {} | cliphist decode | grep -a -oP "filepat[h]=\"\K[^\"]+" | head -n 1)
+        # 如果确实提取到了真实文件才进行处理，否则当成纯文本输出
+        if [ -n "$qq_vid_file" ] && [ -f "$qq_vid_file" ]; then
               # 计算路径哈希值避免重复生成视频缩略图
               video_hash=$(echo "$qq_vid_file" | hash_calc)
               thumb_file="$CACHE_DIR/$video_hash.png"
@@ -372,7 +349,8 @@ cliphist list | filter_clip_list | format_clip_list | add_num | fzf \
                    echo "Video: $qq_vid_file (No thumbnail)"
                fi
         else
-              echo "$qq_vid_file does not exist."
+              # 匹配错误或文件不存在，退回纯文本预览
+              echo {} | cliphist decode
         fi
 
   # 如果是复制文件获取的绝对路径
