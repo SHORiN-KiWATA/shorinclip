@@ -1,8 +1,8 @@
-# shorinclip
+# Cliphist-tui
 
-My first bash script.
+Old name: shorinclip
 
-A wayland clipboard TUI based on `fzf` `wl-clipboard` `cliphist`.
+A wayland clipboard TUI with rich media(IMG/GIF/Video etc.) preview based on `fzf` `wl-clipboard` `cliphist`.
 
 Use `chafa` for image preview, `kitty icat` for gif preview when using native kitty, `ffmpegthumbnailer` for video thumb generation.
 
@@ -23,7 +23,7 @@ Use `chafa` for image preview, `kitty icat` for gif preview when using native ki
 ## Installation
 
 ```
-yay -S shorinclip-git
+yay -S cliphist-tui-git
 ```
 
 For best image preview, a terminal which supports kitty image protocol is needed, such as `kitty` or `ghostty`, or you can let chafa handle image preview (maybe low quality).
@@ -46,7 +46,7 @@ Open cliphist daemon with this command:
 wl-paste --watch cliphist store
 ```
 
-Open tui with this command: `shorinclip`
+Open tui with this command: `cliphist-tui` or `shorinclip`.
 
 Then it just works.
 
