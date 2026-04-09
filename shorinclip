@@ -120,7 +120,7 @@ export -f _preview
 
 # 过滤无法复制粘贴的信息
 filter_clip_list() {
-  grep -a -vP "(?s)(?i)\t.*<html.*\[表情\]"
+    grep -a -viE "\t.*<html.*\[表情\]"
 }
 export -f filter_clip_list
 
