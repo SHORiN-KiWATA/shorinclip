@@ -7,7 +7,9 @@
 # 5. 支持快捷键 (Ctrl+R) 手动刷新剪贴板列表，Ctrl+X删除条目，Alt+X 一键清空剪贴板历史。
 
 # 确保缓存目录存在
-export CACHE_DIR="$HOME/.cache/shorinclip"
+export CACHE_DIR="$HOME/.cache/cliphist-tui"
+# 兼容
+[ -d "$HOME/.cache/shorinclip" ] && [ ! -d "$CACHE_DIR" ] && mv "$HOME/.cache/shorinclip" "$CACHE_DIR" 2>/dev/null
 mkdir -p "$CACHE_DIR"
 # 确保默认shell为bash
 export SHELL=$(command -v bash)
